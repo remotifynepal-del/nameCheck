@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔮 Name Analyzer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0e0b1e;
+      --card: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.1);
+      --purple: #9b5de5;
+      --pink: #f72585;
+      --cyan: #4cc9f0;
+      --yellow: #fee440;
+      --green: #06d6a0;
+      --orange: #fb5607;
+      --white: #f8f9fa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px 48px;
+      overflow-x: hidden;
+      position: relative;
+      color: var(--white);
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0.4;
+    }
+    .mesh {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 0;
+      animation: meshDrift ease-in-out infinite alternate;
+    }
+    @keyframes meshDrift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(40px,30px) scale(1.15); }
+    }
+    .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 480px; position: relative; z-index: 10; }
+    .screen.active { display: flex; }
+
+    /* ── SCREEN 1 ── */
+    .hero-icon {
+      font-size: clamp(60px,18vw,90px);
+      animation: heroFloat 3s ease-in-out infinite;
+      filter: drop-shadow(0 0 30px rgba(155,93,229,0.6));
+      margin-bottom: 12px;
+    }
+    @keyframes heroFloat {
+      0%,100% { transform: translateY(0) rotate(-3deg); }
+      50%      { transform: translateY(-12px) rotate(3deg); }
+    }
+    .hero-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(28px,8vw,46px);
+      font-weight: 800;
+      text-align: center;
+      line-height: 1.15;
+      background: linear-gradient(135deg, var(--cyan), var(--purple), var(--pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: fadeDown 0.6s ease both;
+    }
+    .hero-sub {
+      font-size: clamp(13px,3.5vw,15px);
+      color: rgba(255,255,255,0.45);
+      margin-top: 8px;
+      font-weight: 500;
+      text-align: center;
+      animation: fadeDown 0.6s 0.15s ease both;
+    }
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .input-card {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 28px 22px;
+      margin-top: 28px;
+      backdrop-filter: blur(16px);
+      animation: fadeUp 0.5s 0.25s ease both;
+      box-shadow: 0 12px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .input-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 10px;
+    }
+    .input-field {
+      width: 100%;
+      padding: 15px 18px;
+      background: rgba(255,255,255,0.06);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      color: white;
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(22px,6vw,28px);
+      font-weight: 800;
+      outline: none;
+      text-align: center;
+      letter-spacing: 2px;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+    .input-field::placeholder { color: rgba(255,255,255,0.2); font-size: clamp(16px,4vw,20px); letter-spacing: 1px; }
+    .input-field:focus {
+      border-color: var(--purple);
+      background: rgba(155,93,229,0.08);
+      box-shadow: 0 0 0 4px rgba(155,93,229,0.15);
+    }
+    .char-counter { text-align: right; font-size: 11px; color: rgba(255,255,255,0.2); margin-top: 6px; font-weight: 700; letter-spacing: 1px; }
+    .analyze-btn {
+      width: 100%;
+      margin-top: 22px;
+      padding: 17px;
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(16px,4.5vw,19px);
+      font-weight: 800;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      color: white;
+      letter-spacing: 1px;
+      box-shadow: 0 8px 32px rgba(247,37,133,0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
+      animation: btnBreath 2.5s ease-in-out infinite;
+    }
+    .analyze-btn:hover { transform: scale(1.03) translateY(-2px); box-shadow: 0 14px 40px rgba(247,37,133,0.5); }
+    .analyze-btn:active { transform: scale(0.97); }
+    @keyframes btnBreath {
+      0%,100% { box-shadow: 0 8px 32px rgba(247,37,133,0.35); }
+      50%      { box-shadow: 0 8px 50px rgba(155,93,229,0.6); }
+    }
+    .fun-fact { margin-top: 16px; font-size: 12px; color: rgba(255,255,255,0.25); text-align: center; font-style: italic; animation: fadeUp 0.4s 0.5s ease both; }
+
+    /* ── SCREEN 2 ── */
+    .loading-orb {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: conic-gradient(var(--purple), var(--pink), var(--cyan), var(--yellow), var(--purple));
+      animation: orbSpin 1.5s linear infinite;
+      box-shadow: 0 0 60px rgba(155,93,229,0.5);
+      margin-bottom: 28px;
+      position: relative;
+    }
+    .loading-orb::after {
+      content: '🔮';
+      position: absolute; inset: 8px;
+      background: var(--bg);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 44px;
+    }
+    @keyframes orbSpin { to { transform: rotate(360deg); } }
+    .loading-name-display {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(24px,7vw,36px);
+      font-weight: 800;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .loading-name-display span {
+      display: inline-block;
+      animation: letterDance 0.8s ease-in-out infinite alternate;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    @keyframes letterDance {
+      from { transform: translateY(0) rotate(0deg); }
+      to   { transform: translateY(-6px) rotate(5deg); }
+    }
+    .load-steps { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+    .load-step {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: clamp(12px,3vw,14px);
+      font-weight: 700;
+      color: rgba(255,255,255,0.3);
+      transition: all 0.3s ease;
+      backdrop-filter: blur(8px);
+    }
+    .load-step.active { color: white; border-color: var(--purple); background: rgba(155,93,229,0.1); }
+    .load-step.done   { color: var(--green); border-color: var(--green); background: rgba(6,214,160,0.06); }
+    .load-step-icon { font-size: 18px; flex-shrink: 0; }
+    .load-step-bar  { flex: 1; height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+    .load-step-fill { height: 100%; width: 0%; border-radius: 2px; transition: width 0.6s ease; }
+    .step-tick { font-size: 16px; opacity: 0; transition: opacity 0.3s; }
+    .load-step.done .step-tick { opacity: 1; }
+
+    /* ── SCREEN 3 ── */
+    .result-name-badge {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(28px,9vw,48px);
+      font-weight: 800;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 4px;
+      animation: badgePop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes badgePop {
+      from { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+      to   { opacity: 1; transform: scale(1) rotate(0deg); }
+    }
+    .result-tagline {
+      font-size: clamp(12px,3vw,14px);
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 20px;
+      animation: fadeUp 0.4s 0.2s ease both;
+    }
+    .type-card {
+      width: 100%;
+      border-radius: 20px;
+      padding: 22px;
+      margin-bottom: 14px;
+      animation: fadeUp 0.4s 0.3s ease both;
+    }
+    .type-emoji-big {
+      font-size: clamp(48px,14vw,68px);
+      display: block;
+      text-align: center;
+      margin-bottom: 10px;
+      animation: typeEmojiSpin 3s ease-in-out infinite;
+    }
+    @keyframes typeEmojiSpin {
+      0%,100% { transform: scale(1) rotate(-5deg); }
+      50%      { transform: scale(1.1) rotate(5deg); }
+    }
+    .type-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(18px,5vw,24px);
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .type-desc {
+      font-size: clamp(13px,3.5vw,15px);
+      color: rgba(255,255,255,0.75);
+      text-align: center;
+      line-height: 1.7;
+      font-weight: 500;
+    }
+    .traits-grid { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; animation: fadeUp 0.4s 0.45s ease both; }
+    .trait-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .trait-label { font-size: clamp(11px,2.8vw,13px); font-weight: 700; color: rgba(255,255,255,0.6); min-width: 110px; }
+    .trait-bar-bg { flex: 1; height: 6px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+    .trait-bar-fill { height: 100%; border-radius: 3px; width: 0%; transition: width 1s ease; }
+    .trait-val { font-size: 13px; font-weight: 800; min-width: 36px; text-align: right; }
+    .chips-wrap { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; animation: fadeUp 0.4s 0.6s ease both; }
+    .chip {
+      padding: 8px 14px;
+      border-radius: 40px;
+      font-size: clamp(11px,2.8vw,13px);
+      font-weight: 700;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      cursor: default;
+      transition: transform 0.15s, background 0.15s;
+      animation: chipPop 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    .chip:hover { transform: scale(1.08) rotate(-2deg); background: rgba(255,255,255,0.12); }
+    @keyframes chipPop {
+      from { opacity: 0; transform: scale(0.5); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .roast-box {
+      width: 100%;
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 14px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: var(--card);
+      animation: fadeUp 0.4s 0.7s ease both;
+      backdrop-filter: blur(8px);
+    }
+    .roast-header { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .roast-text { font-size: clamp(13px,3.5vw,15px); color: rgba(255,255,255,0.8); line-height: 1.75; font-weight: 500; }
+    .action-row { width: 100%; display: flex; gap: 10px; animation: fadeUp 0.4s 0.85s ease both; }
+    .btn-primary {
+      flex: 2; padding: 15px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 800; font-size: clamp(13px,3.5vw,15px);
+      border: none; border-radius: 14px; cursor: pointer;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      color: white; letter-spacing: 0.5px;
+      box-shadow: 0 6px 24px rgba(247,37,133,0.3);
+      transition: transform 0.15s;
+    }
+    .btn-primary:hover { transform: scale(1.03); }
+    .btn-secondary {
+      flex: 1; padding: 15px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 800; font-size: clamp(12px,3vw,14px);
+      border: 2px solid var(--border); border-radius: 14px;
+      cursor: pointer; background: transparent;
+      color: rgba(255,255,255,0.6);
+      transition: border-color 0.2s, color 0.2s, transform 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--purple); color: white; transform: scale(1.03); }
+    .sparkle {
+      position: fixed; pointer-events: none; z-index: 50;
+      animation: sparkleFloat linear forwards; font-size: 16px;
+    }
+    @keyframes sparkleFloat {
+      0%   { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+      100% { opacity: 0; transform: translateY(-120px) rotate(360deg) scale(0.3); }
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-8px); }
+      40%      { transform: translateX(8px); }
+      60%      { transform: translateX(-6px); }
+      80%      { transform: translateX(6px); }
+    }
+    .shake { animation: shake 0.4s ease !important; border-color: var(--pink) !important; }
+    @media (max-width: 480px) { .trait-label { min-width: 90px; } }
+  </style>
+</head>
+<body>
+
+<div class="mesh" style="width:500px;height:500px;background:#9b5de5;top:-200px;left:-200px;animation-duration:8s;"></div>
+<div class="mesh" style="width:400px;height:400px;background:#f72585;bottom:-150px;right:-150px;animation-duration:11s;animation-delay:-4s;"></div>
+<div class="mesh" style="width:300px;height:300px;background:#4cc9f0;top:50%;left:50%;animation-duration:7s;animation-delay:-2s;"></div>
+
+<!-- SCREEN 1 -->
+<div class="screen active" id="s1">
+  <div class="hero-icon">🔮</div>
+  <div class="hero-title">What Does Your Name Say About You?</div>
+  <div class="hero-sub">Enter your name and discover your true personality 👀</div>
+  <div class="input-card">
+    <div class="input-label">YOUR NAME</div>
+    <input class="input-field" id="nameInput" maxlength="18" autocomplete="off" spellcheck="false"
+      placeholder="Type here..." oninput="onNameType()" onkeydown="if(event.key==='Enter')startAnalyze()">
+    <div class="char-counter"><span id="charCount">0</span>/18</div>
+    <button class="analyze-btn" onclick="startAnalyze()">🔮 Analyze My Name!</button>
+    <div class="fun-fact">⚡ Warning: Results may be too accurate 😂</div>
+  </div>
+</div>
+
+<!-- SCREEN 2 -->
+<div class="screen" id="s2">
+  <div class="loading-orb"></div>
+  <div class="loading-name-display" id="loadingName"></div>
+  <div class="load-steps" id="loadSteps"></div>
+</div>
+
+<!-- SCREEN 3 -->
+<div class="screen" id="s3">
+  <div class="result-name-badge" id="resultName"></div>
+  <div class="result-tagline">PERSONALITY REPORT 🔮</div>
+  <div class="type-card" id="typeCard">
+    <div class="type-emoji-big" id="typeEmoji"></div>
+    <div class="type-title" id="typeTitle"></div>
+    <div class="type-desc" id="typeDesc"></div>
+  </div>
+  <div class="traits-grid" id="traitsGrid"></div>
+  <div class="chips-wrap" id="chipsWrap"></div>
+  <div class="roast-box">
+    <div class="roast-header" id="roastHeader"></div>
+    <div class="roast-text" id="roastText"></div>
+  </div>
+  <div class="action-row">
+    <button class="btn-primary" onclick="shareResult()">😈 Share with Friends!</button>
+    <button class="btn-secondary" onclick="reset()">🔄 Try Again</button>
+  </div>
+</div>
+
+<script>
+const personalities = [
+  {
+    emoji: '🌋', title: 'The Chaotic Mastermind', color: '#fb5607',
+    desc: 'You have the energy of someone who texts "we need to talk" and then says "lol nothing never mind." A mystery wrapped in a riddle, deep-fried in confusion.',
+    traits: [
+      { label: 'Chaos Energy',    color: '#fb5607' },
+      { label: 'Overthinking',    color: '#f72585' },
+      { label: 'Main Character',  color: '#9b5de5' },
+      { label: 'Snack Loyalty',   color: '#fee440' },
+    ],
+    chips: ['Always fashionably late', 'Has 47 unread texts', 'Crying but make it fashion', 'Sends voice notes at 2am', 'Always has a Plan B'],
+    roasts: [
+      n => `${n}, you walk into rooms like you own them and then immediately forget why you came. Big ideas, zero follow-through, and somehow everyone still loves you. Genuinely chaotic, weirdly iconic.`,
+      n => `${n}'s brain runs on three tabs: overthinking, snacks, and a song from 2016. You start cleaning the house and end up reorganising childhood memories at 3am. Chaotic but kind of legendary.`,
+      n => `Scientists have studied ${n} and concluded: this person is simultaneously the most exhausting and most entertaining person in any group chat. The chaos is intentional. Probably.`,
+    ]
+  },
+  {
+    emoji: '🧃', title: 'Deceptively Soft But Deadly', color: '#06d6a0',
+    desc: 'You look like you drink chamomile tea but you argue with strangers online and win every single time. Do NOT underestimate this person.',
+    traits: [
+      { label: 'Soft Exterior',  color: '#4cc9f0' },
+      { label: 'Hidden Savage',  color: '#f72585' },
+      { label: 'Loyalty',        color: '#06d6a0' },
+      { label: 'Petty Potential',color: '#fee440' },
+    ],
+    chips: ['Silent but deadly', 'Remembers everything', 'Smiles while plotting', 'Cancels plans but feels bad', 'Hugs that heal souls'],
+    roasts: [
+      n => `${n} seems sweet until someone is rude to a waiter. Then an entirely different person appears — and honestly? Respect. Everyone wants ${n} on their side in an argument.`,
+      n => `Do NOT be fooled by ${n}'s calm face. This person has a mental spreadsheet of every wrong thing anyone has ever done to them, sorted by severity and date. They forgive. They never forget.`,
+      n => `${n} is the person who responds "lol okay" to a message and means fourteen different things by it. Threat level: adorable but terrifying. Handle with care.`,
+    ]
+  },
+  {
+    emoji: '🎭', title: 'The Dramatic Academic', color: '#9b5de5',
+    desc: 'You treat every minor inconvenience like a TED talk and every compliment like a dissertation. Your emotions have a whole PowerPoint with citations.',
+    traits: [
+      { label: 'Drama Level',   color: '#f72585' },
+      { label: 'Intelligence',  color: '#9b5de5' },
+      { label: 'Extra-ness',    color: '#fb5607' },
+      { label: 'Overthinking',  color: '#4cc9f0' },
+    ],
+    chips: ['Reads the terms & conditions', 'Has 5 journals', 'Googles symptoms at midnight', 'Corrects people gently', 'Playlist for every mood'],
+    roasts: [
+      n => `${n} once spent 45 minutes researching whether to buy a plant. They bought it. The plant died. They wrote about it. They are currently healing from it. They will be okay. Probably.`,
+      n => `${n} says "I'm fine" with the energy of someone who has prepared a 12-slide presentation on exactly why they are NOT fine. Five stars for self-awareness, zero stars for letting it go.`,
+      n => `${n}'s brain is a library — meticulously organised, slightly dusty in places, and absolutely do not touch anything because it is filed in a specific system only ${n} understands.`,
+    ]
+  },
+  {
+    emoji: '🚀', title: 'The Unhinged Optimist', color: '#fee440',
+    desc: 'Genuinely excited about things with a 3% chance of working out — and somehow they do. You are the human equivalent of a surprise party.',
+    traits: [
+      { label: 'Reckless Hope', color: '#fee440' },
+      { label: 'Hype Energy',   color: '#fb5607' },
+      { label: 'Risk Taking',   color: '#f72585' },
+      { label: 'Lucky Landings',color: '#06d6a0' },
+    ],
+    chips: ['Impulse buyer', 'Still believes in people', 'Laughs at own jokes first', 'Has 9 lives minimum', 'Says "we\'ll figure it out"'],
+    roasts: [
+      n => `${n} booked a flight before checking if they had time off work, figured it out anyway, had the best trip of their life, and got upgraded to business class. We hate you. We love you.`,
+      n => `${n} said "I'll sleep when I'm dead" unironically and has been running on vibes and caffeine ever since. The terrifying part? It's working. Whatever ${n} is doing — it's somehow working.`,
+      n => `${n} is the person who says "how hard can it be?" right before doing something extremely hard and somehow succeeding. Medically inadvisable. Inspirationally unavoidable.`,
+    ]
+  },
+  {
+    emoji: '🌙', title: 'The Mysterious Night Creature', color: '#4cc9f0',
+    desc: 'Most productive between midnight and 3am. Allergic to mornings. Your personality depends on the moon phase and whether you\'ve eaten in the last 6 hours.',
+    traits: [
+      { label: 'Mysterious Aura', color: '#4cc9f0' },
+      { label: 'Night Energy',    color: '#9b5de5' },
+      { label: 'Depth',           color: '#06d6a0' },
+      { label: 'Hunger Level',    color: '#fb5607' },
+    ],
+    chips: ['3am best ideas', 'Deep thinker', 'Hates small talk', 'Naps are sacred', 'Coffee is a personality'],
+    roasts: [
+      n => `${n} has their best ideas at 2:47am, forgets to write them down, and spends the next day convinced they solved something important. They probably did. Neither they nor we will ever know.`,
+      n => `Morning ${n} is a myth. Evening ${n} is a philosopher, a chef, and a visionary all at once. Do not schedule meetings before noon. Do not make eye contact before coffee. You have been warned.`,
+      n => `${n} described their sleep schedule as "flexible" which means they haven't seen a sunrise voluntarily since 2019 and they are thriving.`,
+    ]
+  },
+  {
+    emoji: '🧨', title: 'The Loveable Disaster', color: '#f72585',
+    desc: 'You mean incredibly well, you try extremely hard, and somehow the furniture is still on fire. It\'s not your fault. It\'s just your brand.',
+    traits: [
+      { label: 'Good Intentions', color: '#06d6a0' },
+      { label: 'Disaster Radius', color: '#f72585' },
+      { label: 'Charm Level',     color: '#fee440' },
+      { label: 'Recovery Speed',  color: '#4cc9f0' },
+    ],
+    chips: ['Meant well', 'Apologises to furniture', 'Fixes it creatively', 'Everyone forgives them', 'Chaos magnet'],
+    roasts: [
+      n => `${n} once tried to do one simple thing and accidentally started a series of events that took three hours to resolve, involved two strangers, and somehow ended with free pizza. Classic ${n}.`,
+      n => `${n} is the reason warning labels exist on things that seem obvious. Not because ${n} is careless — but because ${n} is curious and confident and that is a DANGEROUS combination.`,
+      n => `With ${n}, there are two possible outcomes: it goes perfectly, or it becomes a story everyone tells for years. There is no in between. Life around ${n} is never boring.`,
+    ]
+  },
+  {
+    emoji: '🧊', title: 'The Mysteriously Unbothered', color: '#4cc9f0',
+    desc: 'You have mastered the rare art of not caring while somehow knowing everything that\'s happening. You see all. You say little. You judge silently.',
+    traits: [
+      { label: 'Unbothered Level', color: '#4cc9f0' },
+      { label: 'Secret Knowledge', color: '#9b5de5' },
+      { label: 'Cool Factor',      color: '#06d6a0' },
+      { label: 'Silent Judgment',  color: '#fb5607' },
+    ],
+    chips: ['Knows everything', 'Says nothing', 'Raised one eyebrow', 'Already knew that', 'Unbothered icon'],
+    roasts: [
+      n => `${n} already knew about that thing you just told them. They knew three weeks ago. They said nothing. They are saying nothing now. They will continue to say nothing. They find this funny.`,
+      n => `The scary thing about ${n} is not what they say — it's what they don't say. That little smile means something. No one is sure what. ${n} will not be clarifying.`,
+      n => `${n} has the energy of someone who watched the whole drama unfold, took mental notes, and is now waiting to see how it resolves before making any moves. Chess player. Long game only.`,
+    ]
+  },
+  {
+    emoji: '🎪', title: 'The Accidental Icon', color: '#fb5607',
+    desc: 'You weren\'t trying to be iconic. You were just being yourself. And yet here everyone is, copying your style and quoting things you said in passing.',
+    traits: [
+      { label: 'Iconic Energy',  color: '#fb5607' },
+      { label: 'Influence',      color: '#f72585' },
+      { label: 'Authenticity',   color: '#fee440' },
+      { label: 'Obliviousness',  color: '#4cc9f0' },
+    ],
+    chips: ['Trends accidentally', 'Quotes become mottos', 'Effortlessly cool', 'Doesn\'t realise it', 'People study them'],
+    roasts: [
+      n => `${n} wore something weird once as a joke. Three months later it was a trend. ${n} does not understand why people are like this. ${n} is the reason people are like this.`,
+      n => `Something ${n} said as a throwaway comment in 2022 is now someone's life motto. ${n} doesn't remember saying it. This is perfectly on brand for ${n}.`,
+      n => `${n} has the rare ability to make even their mistakes look intentional. Spilled a drink? Fashion statement. Showed up late? Made an entrance. The confidence is unmatched and possibly illegal.`,
+    ]
+  },
+  {
+    emoji: '🌿', title: 'The Deceptively Wise One', color: '#06d6a0',
+    desc: 'You say one sentence and people write it in their notes app. You didn\'t mean for it to be profound. It just came out that way. It always does.',
+    traits: [
+      { label: 'Wisdom Level',  color: '#06d6a0' },
+      { label: 'Calm Energy',   color: '#4cc9f0' },
+      { label: 'Quotability',   color: '#fee440' },
+      { label: 'Deep Lore',     color: '#9b5de5' },
+    ],
+    chips: ['Said something profound', 'By accident', 'People screenshot it', 'Doesn\'t remember saying it', 'Ancient energy'],
+    roasts: [
+      n => `${n} once said something while half asleep that made three people rethink their entire lives. ${n} was trying to say they wanted water. The wisdom was unintentional. It was still wisdom.`,
+      n => `${n} gives advice by telling a story about something that happened to them in 2014 and somehow it applies perfectly to your exact current situation. How. No one knows. ${n} least of all.`,
+      n => `${n} has the energy of a very old soul in a body that still laughs at silly things, forgets where they put their phone, and has seventeen unfinished projects. Wise but chaotic. The best combo.`,
+    ]
+  },
+  {
+    emoji: '⚡', title: 'The Human Energy Drink', color: '#fee440',
+    desc: 'You walk into a room and the energy shifts. People feel more awake. No one is sure why. Scientists are baffled. You just finished your second coffee.',
+    traits: [
+      { label: 'Energy Output', color: '#fee440' },
+      { label: 'Social Battery', color: '#fb5607' },
+      { label: 'Hype Ability',   color: '#f72585' },
+      { label: 'Volume Level',   color: '#4cc9f0' },
+    ],
+    chips: ['Room changer', 'Infectious laugh', 'Already had 3 coffees', 'Sends good morning texts', 'Knows everyone'],
+    roasts: [
+      n => `${n} woke up at 6am on a Saturday. By choice. Sent three voice notes. Made breakfast. Reorganised a drawer. It was 7:15am. The rest of us were still unconscious. This is who ${n} is.`,
+      n => `${n} has never in their life sent a one-word reply. Every message is an event. Every text has emoji. Every voice note is two minutes. We are exhausted. We are grateful. Please never change.`,
+      n => `Being friends with ${n} means your screen time is 30% higher and your mood is 40% better. The correlation is clear. ${n} is the serotonin. We depend on this.`,
+    ]
+  },
+  {
+    emoji: '🎯', title: 'The Quietly Dangerous One', color: '#9b5de5',
+    desc: 'You don\'t say much. But when you do, it lands. You\'ve already thought ten steps ahead. You\'re the person everyone underestimates. Once.',
+    traits: [
+      { label: 'Strategic Mind',  color: '#9b5de5' },
+      { label: 'Patience Level',  color: '#06d6a0' },
+      { label: 'Impact Per Word', color: '#f72585' },
+      { label: 'Long Game Energy',color: '#fee440' },
+    ],
+    chips: ['Already planned it', 'Speaks once, lands', 'Underestimated always', 'Watching and learning', 'Three moves ahead'],
+    roasts: [
+      n => `${n} lets people underestimate them. On purpose. It's a strategy. It's working. It has always been working. By the time anyone realises, ${n} is already three moves ahead and smiling politely.`,
+      n => `${n} said six words in that entire meeting and somehow those were the only six words anyone remembered. The rest of us spoke for forty minutes. This is humbling.`,
+      n => `The thing about ${n} is they've already considered every outcome of this conversation before it started. They know how it ends. They're just letting it play out. Respectfully terrifying.`,
+    ]
+  },
+  {
+    emoji: '🌀', title: 'The Chaotic Good Bestie', color: '#f72585',
+    desc: 'You are the friend who shows up with snacks when someone is sad, suggests the terrible idea that becomes the best memory, and somehow always makes it work.',
+    traits: [
+      { label: 'Loyalty Level',  color: '#f72585' },
+      { label: 'Bad Idea Index', color: '#fb5607' },
+      { label: 'Snack Timing',   color: '#fee440' },
+      { label: 'Saves the Day',  color: '#06d6a0' },
+    ],
+    chips: ['Brought snacks unprompted', 'Suggested the chaotic plan', 'It worked somehow', 'Would hide a body', 'Best 3am call'],
+    roasts: [
+      n => `${n} is the person who said "let's just go, it'll be fine" and it was NOT fine but it was absolutely the best night of the year. This is ${n}'s whole personality. We would not change it.`,
+      n => `${n} gives the kind of advice that sounds wrong but is completely right. "Just text them." "Just quit." "Just eat the cake." ${n} is always correct. It is annoying. It is necessary.`,
+      n => `You can tell ${n} anything at 3am and it stays there. No judgment. Just "that's so valid" and then a truly unhinged solution that somehow fixes everything. Irreplaceable.`,
+    ]
+  },
+];
+
+const loadingSteps = [
+  { icon: '🔤', text: 'Analysing letter energy...' },
+  { icon: '🌌', text: 'Cross-referencing the cosmos...' },
+  { icon: '🧬', text: 'Scanning your vibe frequency...' },
+  { icon: '📊', text: 'Calculating chaos index...' },
+  { icon: '🎯', text: 'Generating your personality...' },
+];
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function hashName(name) {
+  let h = 0;
+  for (let c of name.toLowerCase()) h = (h * 31 + c.charCodeAt(0)) & 0xfffffff;
+  return h;
+}
+function getTraitVal(name, idx) {
+  const h = hashName(name + idx);
+  return 55 + (h % 41);
+}
+
+function onNameType() {
+  const val = document.getElementById('nameInput').value;
+  document.getElementById('charCount').textContent = val.length;
+  spawnSparkles();
+}
+
+function spawnSparkles() {
+  const input = document.getElementById('nameInput');
+  const rect = input.getBoundingClientRect();
+  const icons = ['✨','💫','⭐','🌟','💥'];
+  for (let i = 0; i < 2; i++) {
+    const s = document.createElement('div');
+    s.className = 'sparkle';
+    s.textContent = icons[Math.floor(Math.random() * icons.length)];
+    s.style.cssText = `left:${rect.left + Math.random()*rect.width}px;top:${rect.top}px;animation-duration:${Math.random()*0.5+0.5}s;`;
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 1000);
+  }
+}
+
+function startAnalyze() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) {
+    const inp = document.getElementById('nameInput');
+    inp.classList.add('shake');
+    setTimeout(() => inp.classList.remove('shake'), 400);
+    return;
+  }
+  runLoading(name);
+}
+
+async function runLoading(name) {
+  showScreen('s2');
+  const nameDisplay = document.getElementById('loadingName');
+  nameDisplay.innerHTML = name.split('').map((l, i) =>
+    `<span style="animation-delay:${i*0.1}s;animation-duration:${0.6+Math.random()*0.4}s">${l}</span>`
+  ).join('');
+
+  const colors = [
+    'linear-gradient(90deg,#fb5607,#fee440)',
+    'linear-gradient(90deg,#9b5de5,#4cc9f0)',
+    'linear-gradient(90deg,#f72585,#9b5de5)',
+    'linear-gradient(90deg,#06d6a0,#4cc9f0)',
+    'linear-gradient(90deg,#fee440,#06d6a0)',
+  ];
+  const stepsEl = document.getElementById('loadSteps');
+  stepsEl.innerHTML = '';
+  loadingSteps.forEach((s, i) => {
+    stepsEl.innerHTML += `
+      <div class="load-step" id="lstep${i}">
+        <span class="load-step-icon">${s.icon}</span>
+        <span style="flex:1">${s.text}</span>
+        <div class="load-step-bar"><div class="load-step-fill" id="lfill${i}" style="background:${colors[i]}"></div></div>
+        <span class="step-tick">✅</span>
+      </div>`;
+  });
+
+  for (let i = 0; i < loadingSteps.length; i++) {
+    document.getElementById('lstep' + i).classList.add('active');
+    document.getElementById('lfill' + i).style.width = '100%';
+    await delay(700 + Math.random() * 400);
+    document.getElementById('lstep' + i).classList.remove('active');
+    document.getElementById('lstep' + i).classList.add('done');
+  }
+  await delay(400);
+  showResult(name);
+}
+
+async function showResult(name) {
+  const h = hashName(name);
+  const p = personalities[h % personalities.length];
+  const roast = p.roasts[h % p.roasts.length](name);
+
+  showScreen('s3');
+
+  // name badge
+  const badge = document.getElementById('resultName');
+  badge.style.background = `linear-gradient(135deg, ${p.color}, var(--purple))`;
+  badge.style.webkitBackgroundClip = 'text';
+  badge.style.webkitTextFillColor = 'transparent';
+  badge.style.backgroundClip = 'text';
+  badge.textContent = name.toUpperCase();
+
+  // type card
+  const card = document.getElementById('typeCard');
+  card.style.background = `linear-gradient(135deg, ${p.color}18, ${p.color}06)`;
+  card.style.border = `1px solid ${p.color}35`;
+  document.getElementById('typeEmoji').textContent = p.emoji;
+  document.getElementById('typeTitle').style.color = p.color;
+  document.getElementById('typeTitle').textContent = p.title;
+  document.getElementById('typeDesc').textContent = p.desc;
+
+  // traits
+  const traitsEl = document.getElementById('traitsGrid');
+  traitsEl.innerHTML = '';
+  p.traits.forEach((tr, i) => {
+    const val = getTraitVal(name, i);
+    traitsEl.innerHTML += `
+      <div class="trait-row">
+        <div class="trait-label">${tr.label}</div>
+        <div class="trait-bar-bg"><div class="trait-bar-fill" id="tbar${i}" style="background:${tr.color}"></div></div>
+        <div class="trait-val" style="color:${tr.color}">${val}%</div>
+      </div>`;
+  });
+  await delay(200);
+  p.traits.forEach((_, i) => {
+    setTimeout(() => {
+      document.getElementById('tbar' + i).style.width = getTraitVal(name, i) + '%';
+    }, i * 150);
+  });
+
+  // chips
+  const chipsEl = document.getElementById('chipsWrap');
+  chipsEl.innerHTML = '';
+  const chipColors = ['#f72585','#9b5de5','#4cc9f0','#06d6a0','#fee440','#fb5607'];
+  p.chips.forEach((chip, i) => {
+    const el = document.createElement('div');
+    el.className = 'chip';
+    el.textContent = chip;
+    el.style.color = chipColors[i % chipColors.length];
+    el.style.borderColor = chipColors[i % chipColors.length] + '40';
+    el.style.animationDelay = `${0.6 + i * 0.08}s`;
+    chipsEl.appendChild(el);
+  });
+
+  // roast
+  const rh = document.getElementById('roastHeader');
+  rh.textContent = '🧾 THE REAL VERDICT';
+  rh.style.color = p.color;
+  document.getElementById('roastText').textContent = roast;
+
+  // sparkles burst
+  for (let i = 0; i < 20; i++) {
+    setTimeout(() => {
+      const s = document.createElement('div');
+      s.className = 'sparkle';
+      s.textContent = ['✨','💫','🌟','⭐','💥','🎉'][Math.floor(Math.random()*6)];
+      s.style.cssText = `left:${Math.random()*100}vw;top:${Math.random()*60+20}%;font-size:${Math.random()*16+10}px;animation-duration:${Math.random()*0.8+0.5}s;`;
+      document.body.appendChild(s);
+      setTimeout(() => s.remove(), 1500);
+    }, i * 80);
+  }
+}
+
+function shareResult() {
+  const msg = `🔮 I just found out what my name says about me... it's SCARY accurate 😂 Try yours!`;
+  if (navigator.share) {
+    navigator.share({ title: '🔮 Name Personality Analyzer', text: msg, url: window.location.href });
+  } else {
+    navigator.clipboard?.writeText(msg + '\n' + window.location.href);
+    alert('📋 Copied! Share it with friends 😈');
+  }
+}
+
+function reset() {
+  document.getElementById('nameInput').value = '';
+  document.getElementById('charCount').textContent = '0';
+  showScreen('s1');
+}
+</script>
+<p style="position:fixed; bottom:10px; width:100%; text-align:center; font-size:12px; color:gray;">
+Made with MagicLink Nepal 💖
+</p>
+</body>
+</html>
